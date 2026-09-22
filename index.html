@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro Biométrico - SIGAA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #06b6d4, transparent);
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- HEADER / BARRA SUPERIOR -->
+    <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 shadow-md">
+        <div class="max-w-2xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                    <i class="fa-solid fa-id-card"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold text-white uppercase tracking-wider">Cadastro Biométrico</h1>
+                    <p class="text-[11px] text-slate-400">Captura de foto e geração de vetor facial</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL (CENTRALIZADO) -->
+    <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+
+        <!-- CARD DE CAPTURA DA WEBCAM -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-camera text-cyan-400"></i> Captura Biométrica ao Vivo
+                </h2>
+                <span id="lightingBadge"
+                    class="px-2.5 py-1 text-[11px] font-medium rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle text-[8px] text-amber-400"></i> Iniciando Câmera...
+                </span>
+            </div>
+
+            <!-- CONTAINER DE VÍDEO -->
+            <div class="relative w-full aspect-[4/3] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 shadow-inner group">
+                <!-- Elemento de Vídeo Ao Vivo -->
+                <video id="webcamVideo" autoplay playsinline muted class="w-full h-full object-cover transform -scale-x-100"></video>
+
+                <!-- Canvas para Imagem Capturada -->
+                <canvas id="capturedCanvas" class="hidden w-full h-full object-cover absolute inset-0 z-10"></canvas>
+
+                <!-- Guia de Enquadramento do Rosto -->
+                <div id="faceOverlay" class="absolute inset-0 z-20 pointer-events-none flex flex-col items-center justify-center p-4">
+                    <div class="w-48 h-60 rounded-[50%] border-2 border-dashed border-cyan-400/70 shadow-[0_0_30px_rgba(6,182,212,0.15)] relative flex items-center justify-center">
+                        <div class="scan-line"></div>
+                        <div class="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-cyan-400"></div>
+                        <div class="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-cyan-400"></div>
+                        <div class="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-cyan-400"></div>
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
+                    </div>
+                    <p id="guideInstruction" class="mt-3 text-xs bg-slate-950/80 text-cyan-300 px-3 py-1 rounded-full border border-cyan-500/30 backdrop-blur-sm">
+                        Posicione o rosto dentro da elipse
+                    </p>
+                </div>
+
+                <!-- Botões sobrepostos ao vídeo -->
+                <div class="absolute bottom-3 left-3 right-3 z-30 flex items-center justify-between gap-2">
+                    <button id="btnToggleGuide" type="button" class="px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-xs rounded-lg border border-slate-700/80 backdrop-blur transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-vector-square text-cyan-400"></i> Guia
+                    </button>
+                </div>
+            </div>
+
+            <!-- BOTÕES DE CAPTURA E RECAPTURA -->
+            <div class="mt-4 flex gap-3">
+                <button id="btnCapture" type="button"
+                    class="flex-1 py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-camera text-base"></i>
+                    <span>Tirar Foto de Matrícula</span>
+                </button>
+                <button id="btnRetake" type="button"
+                    class="hidden px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl border border-slate-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Recapturar
+                </button>
+            </div>
+        </div>
+
+        <!-- CARD DO FORMULÁRIO DE CADASTRO -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-emerald-400"></i> Dados do Aluno
+            </h2>
+
+            <form id="studentForm" class="space-y-4">
+                <!-- Matrícula -->
+                <div>
+                    <label for="matriculaInput" class="block text-xs font-medium text-slate-300 mb-1">
+                        Número de Matrícula <span class="text-cyan-400">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                            <i class="fa-solid fa-hashtag text-xs"></i>
+                        </div>
+                        <input type="text" id="matriculaInput" required placeholder="Ex: 2024001928"
+                            class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono transition">
+                    </div>
+                </div>
+
+                <!-- Nome Completo -->
+                <div>
+                    <label for="nomeInput" class="block text-xs font-medium text-slate-300 mb-1">
+                        Nome Completo <span class="text-cyan-400">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                            <i class="fa-solid fa-user text-xs"></i>
+                        </div>
+                        <input type="text" id="nomeInput" required placeholder="Ex: Ana Silva"
+                            class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition">
+                    </div>
+                </div>
+
+                <!-- BOTÃO DE SUBMIT -->
+                <button type="submit" id="btnSaveStudent" disabled
+                    class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-user-check"></i>
+                    <span>Confirmar Matrícula & Salvar</span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- JAVASCRIPT CORRIGIDO E SEM REFERÊNCIAS À TABELA -->
+    <script>
+        // Elementos DOM
+        const webcamVideo = document.getElementById('webcamVideo');
+        const capturedCanvas = document.getElementById('capturedCanvas');
+        const faceOverlay = document.getElementById('faceOverlay');
+        const btnCapture = document.getElementById('btnCapture');
+        const btnRetake = document.getElementById('btnRetake');
+        const btnToggleGuide = document.getElementById('btnToggleGuide');
+        const lightingBadge = document.getElementById('lightingBadge');
+        
+        const studentForm = document.getElementById('studentForm');
+        const matriculaInput = document.getElementById('matriculaInput');
+        const nomeInput = document.getElementById('nomeInput');
+        const btnSaveStudent = document.getElementById('btnSaveStudent');
+
+        let stream = null;
+        let isCaptured = false;
+
+        // Inicializar Webcam
+        async function initCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+                });
+                webcamVideo.srcObject = stream;
+                
+                lightingBadge.className = "px-2.5 py-1 text-[11px] font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5";
+                lightingBadge.innerHTML = '<i class="fa-solid fa-circle text-[8px] text-emerald-400"></i> Câmera Ativa';
+            } catch (err) {
+                console.error("Erro ao acessar câmera:", err);
+                lightingBadge.className = "px-2.5 py-1 text-[11px] font-medium rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1.5";
+                lightingBadge.innerHTML = '<i class="fa-solid fa-circle text-[8px] text-rose-400"></i> Erro na Câmera';
+                alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+            }
+        }
+
+        // Tirar Foto
+        btnCapture.addEventListener('click', () => {
+            const context = capturedCanvas.getContext('2d');
+            capturedCanvas.width = webcamVideo.videoWidth || 640;
+            capturedCanvas.height = webcamVideo.videoHeight || 480;
+
+            // Inverte horizontalmente para bater com a prévia em espelho
+            context.translate(capturedCanvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(webcamVideo, 0, 0, capturedCanvas.width, capturedCanvas.height);
+
+            webcamVideo.classList.add('hidden');
+            capturedCanvas.classList.remove('hidden');
+            btnCapture.classList.add('hidden');
+            btnRetake.classList.remove('hidden');
+
+            isCaptured = true;
+            checkFormValidity();
+        });
+
+        // Recapturar Foto
+        btnRetake.addEventListener('click', () => {
+            capturedCanvas.classList.add('hidden');
+            webcamVideo.classList.remove('hidden');
+            btnRetake.classList.add('hidden');
+            btnCapture.classList.remove('hidden');
+
+            isCaptured = false;
+            checkFormValidity();
+        });
+
+        // Alternar Guia
+        btnToggleGuide.addEventListener('click', () => {
+            faceOverlay.classList.toggle('hidden');
+        });
+
+        // Habilitar / Desabilitar Botão Salvar
+        function checkFormValidity() {
+            const hasMatricula = matriculaInput.value.trim() !== '';
+            const hasNome = nomeInput.value.trim() !== '';
+            btnSaveStudent.disabled = !(isCaptured && hasMatricula && hasNome);
+        }
+
+        matriculaInput.addEventListener('input', checkFormValidity);
+        nomeInput.addEventListener('input', checkFormValidity);
+
+        // Enviar Dados ao Servidor Python (Flask)
+        studentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!isCaptured) {
+                alert("Por favor, tire a foto do aluno antes de salvar.");
+                return;
+            }
+
+            const imagemBase64 = capturedCanvas.toDataURL('image/jpeg');
+            const matricula = matriculaInput.value.trim();
+            const nome = nomeInput.value.trim();
+
+            btnSaveStudent.disabled = true;
+            btnSaveStudent.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processando e Salvando...';
+
+            try {
+                const response = await fetch('http://localhost:5000/api/cadastrar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        matricula: matricula,
+        nome: nome,
+        imagem_base64: imagemBase64
+    })
+});
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ ' + data.mensagem);
+                    studentForm.reset();
+                    btnRetake.click(); // Reseta para tirar nova foto
+                } else {
+                    alert('❌ Erro: ' + data.mensagem);
+                }
+            } catch (err) {
+                console.error("Erro na requisição:", err);
+                alert("❌ Não foi possível conectar ao servidor backend.");
+            } finally {
+                checkFormValidity();
+                btnSaveStudent.innerHTML = '<i class="fa-solid fa-user-check"></i> <span>Confirmar Matrícula & Salvar</span>';
+            }
+        });
+
+        // Inicializar câmera ao carregar a página
+        window.addEventListener('DOMContentLoaded', initCamera);
+    </script>
+</body>
+</html>
